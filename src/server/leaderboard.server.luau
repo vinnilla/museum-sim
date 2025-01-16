@@ -7,6 +7,7 @@ local function leaderboardSetup(player)
   leaderboard.Name = 'leaderstats';
   leaderboard.Parent = player;
 
+  -- LEVEL
   local initialLevelValue = 1;
   -- local initialLevelValue = levelStore:GetAsync(userId) or 1;
   local level = Instance.new('IntValue', leaderboard);
@@ -21,6 +22,15 @@ local function leaderboardSetup(player)
   isPrimary.Name = 'IsPrimary';
   isPrimary.Value = true;
 
+  -- EXPERIENCE
+  local initialExperience = 0;
+  local experience = Instance.new('IntValue', leaderboard);
+  experience.Name = 'Total XP';
+  experience.Value = initialExperience;
+
+  local experiencePriority = Instance.new('NumberValue', experience);
+  experiencePriority.Name = 'Priority';
+  experiencePriority.Value = 5;
   
   -- local checkpointValue = '1_0';
   -- -- local checkpointValue = checkpointStore:GetAsync(userId) or '1_0';
