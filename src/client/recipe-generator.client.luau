@@ -21,30 +21,39 @@ local INGREDIENTS_WEIGHT_MAP = {
   ['Orange'] = 35,
   ['Purple'] = 15,
 };
-
 local INGREDIENTS_XP_MAP = {
-  ['Green'] = 1,
-  ['Orange'] = 2,
-  ['Purple'] = 3,
+  ['Green'] = 2,
+  ['Orange'] = 4,
+  ['Purple'] = 6,
 };
-
--- TODO: replace map with experience threshold equation (mod 3 to determine level "ranges" and linearly increase xp needed per range)
-local EXPERIENCE_THRESHOLD_PER_LEVEL = {
-  -- [1] = 0,
-  [2] = 10,
-  [3] = 20,
-  [4] = 35,
-  [5] = 50,
-  [6] = 65,
-  [7] = 85,
-  [8] = 105,
-  [9] = 125,
-};
-
 local INGREDIENTS_PART_MAP = {};
+local calculatedExpThresholds = {};
+
+-- TODO: move to shared resource
+local function calculateExpThreshold(currentLevel)
+  local nextLevel = currentLevel + 1;
+
+  -- first check cache to save having to make repeat calculations
+  local cachedValue = calculatedExpThresholds[nextLevel];
+  if cachedValue then
+    return cachedValue;
+  end
+
+  local baseThreshold = 5;
+  local baseMultiplier = 5;
+  local exponent = 1.6;
+  local nextLevelThreshold = baseThreshold + math.round((nextLevel ^ exponent) * baseMultiplier);
+
+  -- cache value for future reference
+  if not cachedValue then
+    print(`caching level threshold for level {nextLevel} as {nextLevelThreshold}`)
+    calculatedExpThresholds[nextLevel] = nextLevelThreshold;
+  end
+  
+  return nextLevelThreshold;
+end
 
 local activeRecipe = {};
-
 local humanoidRunningEvent = nil;
 local ingredientTouchedEvent = nil;
 
@@ -151,10 +160,9 @@ local function cloneIngredient(ingredient)
     experienceStat.Value += INGREDIENTS_XP_MAP[ingredientName];
     -- check if player has reached next level xp threshold and increment level accordingly
     local levelStat = leaderStats and leaderStats:FindFirstChild('Level');
-    local nextLevel = levelStat.Value + 1;
-    local nextLevelExperienceThreshold = EXPERIENCE_THRESHOLD_PER_LEVEL[nextLevel];
+    local nextLevelExperienceThreshold = calculateExpThreshold(levelStat.Value);
     if experienceStat.Value >= nextLevelExperienceThreshold then
-      levelStat.Value = nextLevel;
+      levelStat.Value += 1;
       -- TODO: make leveling up more obvious
     end
   end
