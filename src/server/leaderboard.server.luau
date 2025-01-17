@@ -1,5 +1,6 @@
 local Players = game:GetService('Players');
 
+-- TODO: implement datastore for persisting leaderboard data (needs game to be deployed to test functionality)
 local function leaderboardSetup(player)
   -- local userId = tostring(player.UserId);
   -- track joined player stats and add player to leaderboard

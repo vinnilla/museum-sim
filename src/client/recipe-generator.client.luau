@@ -4,10 +4,13 @@ local players = game:GetService("Players");
 local contextActionService = game:GetService("ContextActionService")
 
 local player = players.LocalPlayer;
+local character = player.Character or player.CharacterAdded:Wait();
+local humanoid = character:WaitForChild("Humanoid");
 local playerGui = player.PlayerGui;
 local recipeGui = playerGui:WaitForChild("RecipeGui");
 
 local craftBox = nil;
+local craftBoxPosition = nil;
 local craftBoxTextLabel = nil;
 local craftBoxTextLabelBaseText = "Craft!";
 local craftBoxTextLabelDisabled = `<s>{craftBoxTextLabelBaseText}</s>`;
@@ -50,6 +53,7 @@ local function initiateCraftBox()
     local name = part.Name;
     if name == "CraftBox" then
       craftBox = part;
+      craftBoxPosition = craftBox.Position;
       craftBoxTextLabel = craftBox.BillboardGui.TextLabel;
       craftBoxTextLabel.Text = craftBoxTextLabelDisabled;
       break;
@@ -57,20 +61,46 @@ local function initiateCraftBox()
   end
 end
 
+local function useCraftBox(actionName, inputState, inputObject)
+  if inputState == Enum.UserInputState.Begin then
+    print("using craft box");
+    -- TODO: initiate craft box usage (3 second use time?)
+    -- TODO: placeable item asset is created
+    -- TODO: generate new recipe and spawn new ingredients
+  end
+end
+
 local function activateCraftBox()
   print('all ingredients have been collected')
   craftBoxTextLabel.Text = craftBoxTextLabelBaseText;
 
-  -- TODO: set up code to allow player to interact with craft box only when player character is near box
-  -- local function collectTreasure(actionName, inputState, inputObject)
-  --   if inputState == Enum.UserInputState.Begin then
-  --     print("Collect treasure")
-  --   end
-  -- end
-  
-  -- contextActionService:BindAction("Interact", collectTreasure, true, Enum.KeyCode.T, Enum.KeyCode.ButtonR1)
-  -- contextActionService:SetTitle("Interact", "Collect")
-  -- contextActionService:SetPosition("Interact", UDim2.new(1, -70, 0, 10))
+  -- only allow player to interact with craft box if within 10 studs of craft box
+  local playerPosition = nil;
+  local function onRunning(speed: number)
+    -- get player vector location
+    if speed == 0 then
+      playerPosition = humanoid.RootPart.Position;
+    end
+
+    if playerPosition and craftBoxPosition then
+      local magnitudeDiff = (playerPosition - craftBoxPosition).Magnitude;
+      print(magnitudeDiff);
+      if magnitudeDiff <= 10 then
+        -- enable craft box interaction
+        print('binding')
+        contextActionService:BindAction("Interact", useCraftBox, true, Enum.KeyCode.T, Enum.KeyCode.ButtonR1);
+        contextActionService:SetTitle("Interact", "Use");
+        contextActionService:SetPosition("Interact", UDim2.new(1, -70, 0, 10));
+        -- TODO: show ui for "use craft box" action while in range
+      else
+        print('unbinding')
+        contextActionService:UnbindAction("Interact");
+      end
+    end
+  end
+  humanoid.Running:Connect(function(speed: number)
+    onRunning(speed);
+  end);
 end
 
 local function generateRecipe()
@@ -127,12 +157,12 @@ local function cloneIngredient(ingredient)
     end
   end
 
-	ingredientClone.Transparency = 0
-	ingredientClone.CanTouch = true
+  -- change properties of hidden base asset
+	ingredientClone.Transparency = 0;
+	ingredientClone.CanTouch = true;
 
-  -- change spawn coords as needed
+  -- change spawn coords as needed (when area specific ingredients are added)
   ingredientClone.Position = Vector3.new(math.random(-20, 20), 3, math.random(-20, 20));
-  -- ingredientClone.Position = Vector3.new(math.random(-100, 100), 3, math.random(-100, 100));
 	ingredientClone.Parent = workspace.Terrain
   ingredientClone.Touched:Connect(onIngredientTouched);
 end
