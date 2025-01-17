@@ -28,6 +28,7 @@ local INGREDIENTS_XP_MAP = {
   ['Purple'] = 3,
 };
 
+-- TODO: replace map with experience threshold equation (mod 3 to determine level "ranges" and linearly increase xp needed per range)
 local EXPERIENCE_THRESHOLD_PER_LEVEL = {
   -- [1] = 0,
   [2] = 10,
@@ -43,6 +44,9 @@ local EXPERIENCE_THRESHOLD_PER_LEVEL = {
 local INGREDIENTS_PART_MAP = {};
 
 local activeRecipe = {};
+
+local humanoidRunningEvent = nil;
+local ingredientTouchedEvent = nil;
 
 local function findGuiCount(ingredientName)
   return recipeGui.Background[ingredientName].Count;
@@ -64,9 +68,17 @@ end
 local function useCraftBox(actionName, inputState, inputObject)
   if inputState == Enum.UserInputState.Begin then
     print("using craft box");
-    -- TODO: initiate craft box usage (3 second use time?)
+    contextActionService:UnbindAction("Interact");
+    humanoidRunningEvent:Disconnect();
+
+    -- using craft box takes 3 seconds
+    task.wait(3);
+    print("successfully crafted item!")
+
+    -- generate new recipe and spawn new ingredients
+    generateRecipe();
+    spawnIngredients();
     -- TODO: placeable item asset is created
-    -- TODO: generate new recipe and spawn new ingredients
   end
 end
 
@@ -83,6 +95,7 @@ local function activateCraftBox()
     end
 
     if playerPosition and craftBoxPosition then
+      -- calculate distance between player and craftbox
       local magnitudeDiff = (playerPosition - craftBoxPosition).Magnitude;
       print(magnitudeDiff);
       if magnitudeDiff <= 10 then
@@ -98,23 +111,9 @@ local function activateCraftBox()
       end
     end
   end
-  humanoid.Running:Connect(function(speed: number)
+  humanoidRunningEvent = humanoid.Running:Connect(function(speed: number)
     onRunning(speed);
   end);
-end
-
-local function generateRecipe()
-  local weightMultiplier = 0.1;
-
-  for i, ingredient in pairs(ingredientParts) do
-    local name = ingredient.Name;
-    INGREDIENTS_PART_MAP[name] = ingredient;
-    local ingredientWeight = INGREDIENTS_WEIGHT_MAP[name];
-    local ingredientNumber = math.floor(ingredientWeight * weightMultiplier);
-    activeRecipe[name] = ingredientNumber;
-    local countTextLabel = findGuiCount(name);
-    countTextLabel.Text = `0/{ingredientNumber}`;
-  end
 end
 
 local function cloneIngredient(ingredient)
@@ -126,7 +125,9 @@ local function cloneIngredient(ingredient)
     -- increment ui counter for ingredient collected
     local countTextLabel = findGuiCount(ingredientName);
     local counter = string.match(countTextLabel.Text, "^%d+");
-    counter += 1;
+    if counter then
+      counter += 1;
+    end
 
     -- check if all of one type of ingredients have been collected and update ui accordingly
     if counter == activeRecipe[ingredientName] then
@@ -134,6 +135,7 @@ local function cloneIngredient(ingredient)
       activeRecipe[ingredientName] = nil;
       -- check if ALL ingredients have been collected
       if next(activeRecipe) == nil then
+        ingredientTouchedEvent:Disconnect();
         activateCraftBox();
       end
     else 
@@ -164,10 +166,25 @@ local function cloneIngredient(ingredient)
   -- change spawn coords as needed (when area specific ingredients are added)
   ingredientClone.Position = Vector3.new(math.random(-20, 20), 3, math.random(-20, 20));
 	ingredientClone.Parent = workspace.Terrain
-  ingredientClone.Touched:Connect(onIngredientTouched);
+  ingredientTouchedEvent = ingredientClone.Touched:Connect(onIngredientTouched);
 end
 
-local function spawnIngredients()
+function generateRecipe()
+  local weightMultiplier = 0.1;
+
+  for i, ingredient in pairs(ingredientParts) do
+    local name = ingredient.Name;
+    INGREDIENTS_PART_MAP[name] = ingredient;
+    local ingredientWeight = INGREDIENTS_WEIGHT_MAP[name];
+    local ingredientNumber = math.floor(ingredientWeight * weightMultiplier);
+    activeRecipe[name] = ingredientNumber;
+    local countTextLabel = findGuiCount(name);
+    countTextLabel.Text = `0/{ingredientNumber}`;
+  end
+  craftBoxTextLabel.Text = craftBoxTextLabelDisabled;
+end
+
+function spawnIngredients()
   print('activeRecipe', activeRecipe);
   for ingredientName, number in pairs(activeRecipe) do
     for counter = 1, number do
@@ -176,6 +193,8 @@ local function spawnIngredients()
   end
 end
 
+-- initialize game
+-- TODO: move recipe generation and ingredient spawning to server
 initiateCraftBox();
 generateRecipe();
 spawnIngredients();
