@@ -11,9 +11,8 @@ local recipeGui = playerGui:WaitForChild("RecipeGui");
 
 local craftBox = nil;
 local craftBoxPosition = nil;
-local craftBoxTextLabel = nil;
-local craftBoxTextLabelBaseText = "Craft!";
-local craftBoxTextLabelDisabled = `<s>{craftBoxTextLabelBaseText}</s>`;
+local craftBoxBillboard = nil;
+local craftBoxHighlight = nil;
 
 -- TODO: move hard coded maps into separate shared resource that both client and server can reference
 local INGREDIENTS_WEIGHT_MAP = {
@@ -21,6 +20,7 @@ local INGREDIENTS_WEIGHT_MAP = {
   ['Orange'] = 35,
   ['Purple'] = 15,
 };
+local ingredientWeightMultiplier = 0.1;
 local INGREDIENTS_XP_MAP = {
   ['Green'] = 2,
   ['Orange'] = 4,
@@ -49,7 +49,7 @@ local function calculateExpThreshold(currentLevel)
     print(`caching level threshold for level {nextLevel} as {nextLevelThreshold}`)
     calculatedExpThresholds[nextLevel] = nextLevelThreshold;
   end
-  
+
   return nextLevelThreshold;
 end
 
@@ -67,8 +67,9 @@ local function initiateCraftBox()
     if name == "CraftBox" then
       craftBox = part;
       craftBoxPosition = craftBox.Position;
-      craftBoxTextLabel = craftBox.BillboardGui.TextLabel;
-      craftBoxTextLabel.Text = craftBoxTextLabelDisabled;
+      craftBoxBillboard = craftBox.BillboardGui;
+      craftBoxBillboard.Enabled = false;
+      craftBoxHighlight = craftBox.Highlight;
       break;
     end
   end
@@ -93,7 +94,8 @@ end
 
 local function activateCraftBox()
   print('all ingredients have been collected')
-  craftBoxTextLabel.Text = craftBoxTextLabelBaseText;
+  craftBoxHighlight.Enabled = true;
+  -- TODO: display ui messaging "All ingredients have been gathered!"
 
   -- only allow player to interact with craft box if within 10 studs of craft box
   local playerPosition = nil;
@@ -109,13 +111,13 @@ local function activateCraftBox()
       print(magnitudeDiff);
       if magnitudeDiff <= 10 then
         -- enable craft box interaction
-        print('binding')
+        craftBoxBillboard.Enabled = true;
         contextActionService:BindAction("Interact", useCraftBox, true, Enum.KeyCode.T, Enum.KeyCode.ButtonR1);
         contextActionService:SetTitle("Interact", "Use");
         contextActionService:SetPosition("Interact", UDim2.new(1, -70, 0, 10));
         -- TODO: show ui for "use craft box" action while in range
       else
-        print('unbinding')
+        craftBoxBillboard.Enabled = false;
         contextActionService:UnbindAction("Interact");
       end
     end
@@ -178,18 +180,18 @@ local function cloneIngredient(ingredient)
 end
 
 function generateRecipe()
-  local weightMultiplier = 0.1;
-
   for i, ingredient in pairs(ingredientParts) do
     local name = ingredient.Name;
     INGREDIENTS_PART_MAP[name] = ingredient;
     local ingredientWeight = INGREDIENTS_WEIGHT_MAP[name];
-    local ingredientNumber = math.floor(ingredientWeight * weightMultiplier);
+    local ingredientNumber = math.floor(ingredientWeight * ingredientWeightMultiplier);
     activeRecipe[name] = ingredientNumber;
     local countTextLabel = findGuiCount(name);
     countTextLabel.Text = `0/{ingredientNumber}`;
   end
-  craftBoxTextLabel.Text = craftBoxTextLabelDisabled;
+  craftBoxBillboard.Enabled = false;
+  craftBoxHighlight.Enabled = false;
+  ingredientWeightMultiplier += ingredientWeightMultiplier ^ 2; -- increase multiplier with each generated recipe
 end
 
 function spawnIngredients()
