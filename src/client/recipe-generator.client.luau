@@ -1,4 +1,5 @@
 local ingredientParts = workspace:WaitForChild("Ingredients"):GetChildren();
+local craftables = workspace:WaitForChild("Craftables"):GetChildren();
 local mainArea = workspace:WaitForChild("MainArea"):GetChildren();
 local players = game:GetService("Players");
 local contextActionService = game:GetService("ContextActionService")
@@ -28,6 +29,7 @@ local INGREDIENTS_XP_MAP = {
 };
 local INGREDIENTS_PART_MAP = {};
 local calculatedExpThresholds = {};
+local activeSpawnParticleEmitters = {};
 
 -- TODO: move to shared resource
 local function calculateExpThreshold(currentLevel)
@@ -70,7 +72,6 @@ local function initiateCraftBox()
       craftBoxBillboard = craftBox.BillboardGui;
       craftBoxBillboard.Enabled = false;
       craftBoxHighlight = craftBox.Highlight;
-      break;
     end
   end
 end
@@ -83,12 +84,48 @@ local function useCraftBox(actionName, inputState, inputObject)
 
     -- using craft box takes 3 seconds
     task.wait(3);
+    
     print("successfully crafted item!")
+    local hasSpawned = false;
 
-    -- generate new recipe and spawn new ingredients
-    generateRecipe();
-    spawnIngredients();
-    -- TODO: placeable item asset is created
+    -- reveal assets one by one
+    for i, product in pairs(craftables) do
+      if product.Archivable == true then -- Archivable is a "Model" property that is easily accessed and toggled
+        product.Archivable = false;
+        local allChildren = product:GetChildren();
+        -- this nested loop will only ever run once per craft box use
+        for i, child in pairs(allChildren) do
+          child.Transparency = 0;
+          child.CanCollide = true;
+          local particleEmitter = child:WaitForChild("ParticleEmitter");
+          particleEmitter.Enabled = true;
+          table.insert(activeSpawnParticleEmitters, particleEmitter);
+        end
+        hasSpawned = true;
+        break;
+      end
+    end
+
+    -- first disable, then despawn all registered active emitters from asset spawning
+    local function disableThenDestroy(part)
+      part.Enabled = false;
+      task.wait(3);
+      part:Destroy();
+    end
+    for i, emitter in pairs(activeSpawnParticleEmitters) do
+      task.delay(3, disableThenDestroy, emitter);
+    end
+
+    if not hasSpawned then
+      print('oh no we are out of craftables!');
+      craftBoxBillboard.Enabled = false;
+      craftBoxHighlight.Enabled = false;    
+      -- TODO: show messaging saying that all craftables have been made (and to wait for next update / ascend?)
+    else 
+      -- generate new recipe and spawn new ingredients
+      generateRecipe();
+      spawnIngredients();
+    end
   end
 end
 
@@ -108,7 +145,6 @@ local function activateCraftBox()
     if playerPosition and craftBoxPosition then
       -- calculate distance between player and craftbox
       local magnitudeDiff = (playerPosition - craftBoxPosition).Magnitude;
-      print(magnitudeDiff);
       if magnitudeDiff <= 10 then
         -- enable craft box interaction
         craftBoxBillboard.Enabled = true;
@@ -173,7 +209,7 @@ local function cloneIngredient(ingredient)
 	ingredientClone.Transparency = 0;
 	ingredientClone.CanTouch = true;
 
-  -- change spawn coords as needed (when area specific ingredients are added)
+  -- TODO: replace random generation of ingredient position to random selection of predetermined spawn locations
   ingredientClone.Position = Vector3.new(math.random(-20, 20), 3, math.random(-20, 20));
 	ingredientClone.Parent = workspace.Terrain
   ingredientTouchedEvent = ingredientClone.Touched:Connect(onIngredientTouched);
@@ -195,7 +231,6 @@ function generateRecipe()
 end
 
 function spawnIngredients()
-  print('activeRecipe', activeRecipe);
   for ingredientName, number in pairs(activeRecipe) do
     for counter = 1, number do
       cloneIngredient(INGREDIENTS_PART_MAP[ingredientName]);
