@@ -1,8 +1,10 @@
+local players = game:GetService("Players");
+local contextActionService = game:GetService("ContextActionService")
+
 local ingredientParts = workspace:WaitForChild("Ingredients"):GetChildren();
 local craftables = workspace:WaitForChild("Craftables"):GetChildren();
 local mainArea = workspace:WaitForChild("MainArea"):GetChildren();
-local players = game:GetService("Players");
-local contextActionService = game:GetService("ContextActionService")
+local levelUpParticleEmitterPart = workspace:WaitForChild("LevelUpParticle");
 
 local player = players.LocalPlayer;
 local character = player.Character or player.CharacterAdded:Wait();
@@ -14,6 +16,7 @@ local craftBox = nil;
 local craftBoxPosition = nil;
 local craftBoxBillboard = nil;
 local craftBoxHighlight = nil;
+local levelUpParticleEmitter = nil;
 
 -- TODO: move hard coded maps into separate shared resource that both client and server can reference
 local INGREDIENTS_WEIGHT_MAP = {
@@ -58,6 +61,23 @@ end
 local activeRecipe = {};
 local humanoidRunningEvent = nil;
 local ingredientTouchedEvent = nil;
+
+local function initiatePlayer(character)
+  local humanoidRoot = character:WaitForChild("HumanoidRootPart");
+  levelUpParticleEmitter = levelUpParticleEmitterPart:Clone();
+  levelUpParticleEmitter.Parent = humanoidRoot;
+end
+
+-- TODO: persist old character's recipe gui to new character's
+player.CharacterAdded:Connect(function(newCharacter)
+  print('character added!')
+  character = newCharacter;
+  humanoid = character:WaitForChild("Humanoid");
+  humanoid.WalkSpeed = 32;
+  playerGui = player.PlayerGui;
+  recipeGui = playerGui:WaitForChild("RecipeGui");
+  initiatePlayer(character);
+end)
 
 local function findGuiCount(ingredientName)
   return recipeGui.Background[ingredientName].Count;
@@ -201,7 +221,13 @@ local function cloneIngredient(ingredient)
     local nextLevelExperienceThreshold = calculateExpThreshold(levelStat.Value);
     if experienceStat.Value >= nextLevelExperienceThreshold then
       levelStat.Value += 1;
-      -- TODO: make leveling up more obvious
+
+      -- enable level up particle emitter to make leveling up more obvious
+      levelUpParticleEmitter.Enabled = true;
+      local function disableLevelUpEmitter(emitter) 
+        emitter.Enabled = false;
+      end
+      task.delay(5, disableLevelUpEmitter, levelUpParticleEmitter);
     end
   end
 
@@ -216,6 +242,7 @@ local function cloneIngredient(ingredient)
 end
 
 function generateRecipe()
+  print('generating recipe');
   for i, ingredient in pairs(ingredientParts) do
     local name = ingredient.Name;
     INGREDIENTS_PART_MAP[name] = ingredient;
@@ -231,6 +258,7 @@ function generateRecipe()
 end
 
 function spawnIngredients()
+  print('spawning ingredients');
   for ingredientName, number in pairs(activeRecipe) do
     for counter = 1, number do
       cloneIngredient(INGREDIENTS_PART_MAP[ingredientName]);
@@ -238,8 +266,12 @@ function spawnIngredients()
   end
 end
 
+
+
 -- initialize game
 -- TODO: move recipe generation and ingredient spawning to server
 initiateCraftBox();
 generateRecipe();
 spawnIngredients();
+initiatePlayer(character);
+
