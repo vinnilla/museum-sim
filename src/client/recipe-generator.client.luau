@@ -32,7 +32,8 @@ local INGREDIENTS_XP_MAP = {
 };
 local INGREDIENTS_PART_MAP = {};
 local calculatedExpThresholds = {};
-local activeSpawnParticleEmitters = {};
+local temporaryParticleEmitters = {};
+local activatedParticleEmitters = {};
 
 -- TODO: move to shared resource
 local function calculateExpThreshold(currentLevel)
@@ -114,13 +115,22 @@ local function useCraftBox(actionName, inputState, inputObject)
         product.Archivable = false;
         local allChildren = product:GetChildren();
         -- this nested loop will only ever run once per craft box use
-        for i, child in pairs(allChildren) do
-          child.Transparency = 0;
-          child.CanCollide = true;
-          local particleEmitter = child:WaitForChild("ParticleEmitter");
-          particleEmitter.Enabled = true;
-          table.insert(activeSpawnParticleEmitters, particleEmitter);
-        end
+        if #allChildren > 1 then
+          for i, child in pairs(allChildren) do
+            child.Transparency = 0;
+            child.CanCollide = true;
+            local particleEmitter = child:WaitForChild("ParticleEmitter");
+            particleEmitter.Enabled = true;
+            table.insert(temporaryParticleEmitters, particleEmitter);
+          end
+        else
+          -- if only 1 child, its a particle emitter
+          local emitter = allChildren[1];
+          emitter.Enabled = true;
+          table.insert(activatedParticleEmitters, emitter);
+          product.Transparency = 0;
+          product.CanCollide = true;
+        end        
         hasSpawned = true;
         break;
       end
@@ -132,7 +142,7 @@ local function useCraftBox(actionName, inputState, inputObject)
       task.wait(3);
       part:Destroy();
     end
-    for i, emitter in pairs(activeSpawnParticleEmitters) do
+    for i, emitter in pairs(temporaryParticleEmitters) do
       task.delay(3, disableThenDestroy, emitter);
     end
 
@@ -266,11 +276,21 @@ function spawnIngredients()
   end
 end
 
+local function orderCraftables()
+  local sortedCrafted = {};
+  for i, product in pairs(craftables) do
+    local productId = tonumber(string.match(product.Name, "^%d+"));
+    sortedCrafted[productId] = product;
+  end
+  craftables = sortedCrafted;
+end
+
 
 
 -- initialize game
 -- TODO: move recipe generation and ingredient spawning to server
 initiateCraftBox();
+orderCraftables();
 generateRecipe();
 spawnIngredients();
 initiatePlayer(character);
