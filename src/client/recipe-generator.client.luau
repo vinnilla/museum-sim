@@ -1,6 +1,10 @@
 local players = game:GetService("Players");
 local contextActionService = game:GetService("ContextActionService")
 
+-- Cache required modules at the top of your script
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ResourcesData = require(ReplicatedStorage.Modules.Resources.Data)
+
 local ingredientParts = workspace:WaitForChild("Ingredients"):GetChildren();
 local craftables = workspace:WaitForChild("Craftables"):GetChildren();
 local mainArea = workspace:WaitForChild("MainArea"):GetChildren();
@@ -18,18 +22,7 @@ local craftBoxBillboard = nil;
 local craftBoxHighlight = nil;
 local levelUpParticleEmitter = nil;
 
--- TODO: move hard coded maps into separate shared resource that both client and server can reference
-local INGREDIENTS_WEIGHT_MAP = {
-  ['Green'] = 50,
-  ['Orange'] = 35,
-  ['Purple'] = 15,
-};
-local ingredientWeightMultiplier = 0.1;
-local INGREDIENTS_XP_MAP = {
-  ['Green'] = 2,
-  ['Orange'] = 4,
-  ['Purple'] = 6,
-};
+-- Objects to track parts that are programatically spawned
 local INGREDIENTS_PART_MAP = {};
 local calculatedExpThresholds = {};
 local temporaryParticleEmitters = {};
@@ -225,7 +218,7 @@ local function cloneIngredient(ingredient)
     -- player gains experience per ingredient gathered
     local leaderStats = player and player:FindFirstChild('leaderstats');
     local experienceStat = leaderStats and leaderStats:FindFirstChild('Total XP');
-    experienceStat.Value += INGREDIENTS_XP_MAP[ingredientName];
+    experienceStat.Value += ResourcesData.xpMap[ingredientName];
     -- check if player has reached next level xp threshold and increment level accordingly
     local levelStat = leaderStats and leaderStats:FindFirstChild('Level');
     local nextLevelExperienceThreshold = calculateExpThreshold(levelStat.Value);
@@ -253,10 +246,11 @@ end
 
 function generateRecipe()
   print('generating recipe');
+  local ingredientWeightMultiplier = ResourcesData.ingredientWeightMultiplier;
   for i, ingredient in pairs(ingredientParts) do
     local name = ingredient.Name;
     INGREDIENTS_PART_MAP[name] = ingredient;
-    local ingredientWeight = INGREDIENTS_WEIGHT_MAP[name];
+    local ingredientWeight = ResourcesData.weightMap[name];
     local ingredientNumber = math.floor(ingredientWeight * ingredientWeightMultiplier);
     activeRecipe[name] = ingredientNumber;
     local countTextLabel = findGuiCount(name);
