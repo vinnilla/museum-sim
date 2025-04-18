@@ -20,20 +20,20 @@ local function spawnPet()
       clone:MoveTo(Vector3.new(0, 0, 5));
 
       local function followPlayer()
-        local rootPart = character.HumanoidRootPart
-        local modelPrimaryPart = clone.PrimaryPart or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+        local rootPart = character.HumanoidRootPart;
+        local modelPrimaryPart = clone.PrimaryPart or model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart");
     
         if not modelPrimaryPart then
-            warn("Model does not have a primary part or base part to move!")
-            return
+            warn("Model does not have a primary part or base part to move!");
+            return;
         end
     
         -- Calculate the target position and rotation
-        local targetCFrame = rootPart.CFrame * CFrame.new(0, -2, 7)
-        local currentCFrame = modelPrimaryPart.CFrame
+        local targetCFrame = rootPart.CFrame * CFrame.new(0, 0, 7) - Vector3.new(0, rootPart.CFrame.Y, 0);
+        local currentCFrame = modelPrimaryPart.CFrame;
 
         -- Interpolate between the current CFrame and the target CFrame
-        modelPrimaryPart.CFrame = currentCFrame:Lerp(targetCFrame, smoothness)
+        modelPrimaryPart.CFrame = currentCFrame:Lerp(targetCFrame, smoothness);
     end
 
       RunService.Heartbeat:Connect(followPlayer);
