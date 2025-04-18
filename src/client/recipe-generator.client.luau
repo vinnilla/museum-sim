@@ -4,6 +4,7 @@ local contextActionService = game:GetService("ContextActionService")
 -- Cache required modules at the top of your script
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ResourcesData = require(ReplicatedStorage.Modules.Resources.Data)
+local RecipeGUI = require(ReplicatedStorage.Modules.UI.Recipe)
 
 local ingredientParts = workspace:WaitForChild("Ingredients"):GetChildren();
 local craftables = workspace:WaitForChild("Craftables"):GetChildren();
@@ -13,8 +14,6 @@ local levelUpParticleEmitterPart = workspace:WaitForChild("LevelUpParticle");
 local player = players.LocalPlayer;
 local character = player.Character or player.CharacterAdded:Wait();
 local humanoid = character:WaitForChild("Humanoid");
-local playerGui = player.PlayerGui;
-local recipeGui = playerGui:WaitForChild("RecipeGui");
 
 local craftBox = nil;
 local craftBoxPosition = nil;
@@ -56,6 +55,7 @@ local activeRecipe = {};
 local humanoidRunningEvent = nil;
 local ingredientTouchedEvent = nil;
 
+-- TODO: move to shared character resource
 local function initiatePlayer(character)
   local humanoidRoot = character:WaitForChild("HumanoidRootPart");
   levelUpParticleEmitter = levelUpParticleEmitterPart:Clone();
@@ -68,14 +68,9 @@ player.CharacterAdded:Connect(function(newCharacter)
   character = newCharacter;
   humanoid = character:WaitForChild("Humanoid");
   humanoid.WalkSpeed = 32;
-  playerGui = player.PlayerGui;
-  recipeGui = playerGui:WaitForChild("RecipeGui");
+  RecipeGUI.refresh();
   initiatePlayer(character);
 end)
-
-local function findGuiCount(ingredientName)
-  return recipeGui.Background[ingredientName].Count;
-end
 
 local function initiateCraftBox()
   for i, part in pairs(mainArea) do
@@ -193,7 +188,7 @@ local function cloneIngredient(ingredient)
   -- nested function because this function needs to access the ingredient clone object
   local function onIngredientTouched(_otherPart)
     -- increment ui counter for ingredient collected
-    local countTextLabel = findGuiCount(ingredientName);
+    local countTextLabel = RecipeGUI.getCount(ingredientName);
     local counter = string.match(countTextLabel.Text, "^%d+");
     if counter then
       counter += 1;
@@ -253,7 +248,7 @@ function generateRecipe()
     local ingredientWeight = ResourcesData.weightMap[name];
     local ingredientNumber = math.floor(ingredientWeight * ingredientWeightMultiplier);
     activeRecipe[name] = ingredientNumber;
-    local countTextLabel = findGuiCount(name);
+    local countTextLabel = RecipeGUI.getCount(name);
     countTextLabel.Text = `0/{ingredientNumber}`;
   end
   craftBoxBillboard.Enabled = false;
